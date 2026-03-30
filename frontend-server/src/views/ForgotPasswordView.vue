@@ -18,7 +18,7 @@
                         placeholder="correo@ejemplo.com"
                     />
                 </div>
-                <button type="submit" class="btn" :disabled="loading">
+                <button  type="submit" class="btn" :disabled="loading">
                     {{ loading ? 'Enviando...' : 'Enviar Enlace' }}
                 </button>
             </form>

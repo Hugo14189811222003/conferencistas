@@ -2,17 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const pool = require('../config/db');
-const nodemailer = require('nodemailer');
-
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD
-    }
-});
+const { resend } = require('../utils/resend');
 
 const register = async (req, res) => {
     try {
@@ -158,47 +148,97 @@ const forgotPassword = async (req, res) => {
     try {
         const { gmail } = req.body;
 
+        // Buscar usuario
         const userResult = await pool.query(
             'SELECT id FROM usuarios WHERE gmail = $1',
             [gmail]
         );
 
+        // Siempre responder lo mismo (seguridad)
         if (userResult.rows.length === 0) {
-            return res.json({ message: 'Si el correo existe, recibirás un enlace para restablecer tu contraseña' });
+            return res.json({
+                message: 'Si el correo existe, recibirás un enlace para restablecer tu contraseña'
+            });
         }
 
         const user = userResult.rows[0];
+
+        // Crear token
         const token = crypto.randomBytes(32).toString('hex');
+
+        // Expira en 1 hora
         const expiresAt = new Date(Date.now() + 3600000);
 
+        // Guardar token
         await pool.query(
-            'INSERT INTO password_reset_tokens (usuario_id, token, expires_at) VALUES ($1, $2, $3)',
+            `INSERT INTO password_reset_tokens 
+            (usuario_id, token, expires_at) 
+            VALUES ($1, $2, $3)`,
             [user.id, token, expiresAt]
         );
+        console.log("email de la persona: ", gmail);
 
-        const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+        // Crear URL
+        const resetUrl =
+            `${process.env.FRONTEND_URL}/reset-password/${token}`;
 
         try {
-            await transporter.sendMail({
-                from: process.env.SMTP_FROM,
+
+            await resend.emails.send({
+                from: 'Conferencistas <onboarding@resend.dev>',
                 to: gmail,
                 subject: 'Restablecer contraseña - Conferencistas',
+
                 html: `
                     <h1>Restablecer contraseña</h1>
-                    <p>Haz clic en el siguiente enlace para restablecer tu contraseña:</p>
-                    <a href="${resetUrl}">${resetUrl}</a>
-                    <p>Este enlace expira en 1 hora.</p>
-                    <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+
+                    <p>
+                        Haz clic en el siguiente enlace para 
+                        restablecer tu contraseña:
+                    </p>
+
+                    <a href="${resetUrl}">
+                        ${resetUrl}
+                    </a>
+
+                    <p>
+                        Este enlace expira en 1 hora.
+                    </p>
+
+                    <p>
+                        Si no solicitaste este cambio,
+                        puedes ignorar este correo.
+                    </p>
                 `
             });
+
+            console.log("Correo enviado correctamente");
+
         } catch (emailError) {
-            console.error('Email send error:', emailError);
+
+            console.error(
+                'Error enviando correo:',
+                emailError
+            );
+
         }
 
-        res.json({ message: 'Si el correo existe, recibirás un enlace para restablecer tu contraseña' });
+        res.json({
+            message:
+                'Si el correo existe, recibirás un enlace para restablecer tu contraseña'
+        });
+
     } catch (error) {
-        console.error('Forgot password error:', error);
-        res.status(500).json({ error: 'Error al procesar solicitud' });
+
+        console.error(
+            'Forgot password error:',
+            error
+        );
+
+        res.status(500).json({
+            error:
+                'Error al procesar solicitud'
+        });
     }
 };
 

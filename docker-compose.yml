@@ -34,12 +34,8 @@ services:
       DB_PASSWORD: postgres
       JWT_SECRET: super-secret-jwt-key-change-in-production
       JWT_EXPIRES_IN: 5m
-      SMTP_HOST: smtp.example.com
-      SMTP_PORT: 587
-      SMTP_USER: noreply@conferencistas.com
-      SMTP_PASSWORD: smtp-password
-      SMTP_FROM: Conferencistas <noreply@conferencistas.com>
-      FRONTEND_URL: http://localhost
+      FRONTEND_URL: http://localhost:8081
+      RESEND_API_KEY: re_DzLj7g7J_EUuwVCH1upNMiZWxhZWwFkij
     ports:
       - "3001:3000"
     depends_on:
